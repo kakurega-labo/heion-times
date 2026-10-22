@@ -5,6 +5,7 @@ import * as db from './db.js';
 import * as pages from './views/pages.js';
 import { placesBox, rankingBox, calmPercent } from './views/components.js';
 import { handleAdmin } from './admin.js';
+import { servePhoto } from './photos.js';
 
 const PER_PAGE = 30;
 const VOTE_COOKIE = 'hv';
@@ -27,7 +28,7 @@ export async function handle(context) {
     }
 
     if (path === '/admin/' || path.startsWith('/admin/')) return await handleAdmin(context, url);
-    if (path.startsWith('/images/')) return await serveImage(env, path.slice('/images/'.length));
+    if (path.startsWith('/images/')) return await servePhoto(env, path.slice('/images/'.length), request);
 
     if (!env.DB) return setupNeeded();
 
@@ -232,18 +233,4 @@ async function vote(env, url, request, publicId) {
   }
   headers.set('location', `${url.origin}/articles/${publicId}/#vote`);
   return new Response(null, { status: 303, headers });
-}
-
-// ---- 写真（R2） ------------------------------------------------------------
-
-async function serveImage(env, key) {
-  if (!env.IMAGES || !/^articles\/\d+\/[0-9a-f-]+\.(jpg|png|webp)$/.test(key)) return new Response('Not found', { status: 404 });
-  const obj = await env.IMAGES.get(key);
-  if (!obj) return new Response('Not found', { status: 404 });
-  const headers = new Headers();
-  if (typeof obj.writeHttpMetadata === 'function') obj.writeHttpMetadata(headers);
-  if (!headers.has('content-type')) headers.set('content-type', obj.httpMetadata?.contentType || 'application/octet-stream');
-  headers.set('cache-control', 'public, max-age=31536000, immutable');
-  if (obj.httpEtag) headers.set('etag', obj.httpEtag);
-  return new Response(obj.body, { headers });
 }

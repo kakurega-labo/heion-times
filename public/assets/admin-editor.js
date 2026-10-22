@@ -12,6 +12,78 @@ document.querySelectorAll('form[data-confirm]').forEach((form) => {
 const form = document.querySelector('[data-article-form]');
 if (form) setupArticleForm(form);
 
+// ---- 写真の自動縮小 ----
+// 写真は D1 に保存するため、送る前にブラウザで小さくします（長辺1600px、なるべく400KB以下）。
+const photoInput = document.querySelector('[data-photo-input]');
+if (photoInput) setupPhotoInput(photoInput);
+
+function setupPhotoInput(input) {
+  const status = document.querySelector('[data-photo-status]');
+  const preview = document.querySelector('[data-photo-preview]');
+  const MAX_SIDE = 1600;
+  const TARGET = 400 * 1024;
+  const LIMIT = 1000 * 1024;
+  const kb = (n) => `${Math.round(n / 1024)}KB`;
+
+  const toBlob = (canvas, type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+
+  async function shrink(file) {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    let side = MAX_SIDE;
+    let best = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; // 透過PNGの背景を白に
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      for (const quality of [0.82, 0.7, 0.6]) {
+        let blob = await toBlob(canvas, 'image/webp', quality);
+        if (!blob || blob.type !== 'image/webp') blob = await toBlob(canvas, 'image/jpeg', quality); // WebP非対応のブラウザ
+        if (!best || blob.size < best.size) best = blob;
+        if (blob.size <= TARGET) return blob;
+      }
+      side = Math.round(side * 0.8);
+    }
+    return best;
+  }
+
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    if (typeof createImageBitmap !== 'function' || typeof DataTransfer !== 'function') {
+      if (file.size > LIMIT) status.textContent = `この写真は ${kb(file.size)} あり、1MBを超えています。小さくしてから選んでください。`;
+      return;
+    }
+    status.textContent = '写真を縮小しています…';
+    try {
+      const blob = await shrink(file);
+      if (blob.size > LIMIT) {
+        input.value = '';
+        status.textContent = `縮小しても ${kb(blob.size)} あり、保存できません。別の写真を選んでください。`;
+        return;
+      }
+      const ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
+      const name = file.name.replace(/\.[^.]+$/, '') + '.' + ext;
+      const dt = new DataTransfer();
+      dt.items.add(new File([blob], name, { type: blob.type }));
+      input.files = dt.files;
+      status.textContent = `縮小しました：${kb(file.size)} → ${kb(blob.size)}。保存すると反映されます。`;
+      if (preview) {
+        preview.src = URL.createObjectURL(blob);
+        preview.hidden = false;
+      }
+    } catch (err) {
+      console.error(err);
+      input.value = '';
+      status.textContent = 'この写真は読み込めませんでした（iPhoneのHEIC形式などは、JPEGに変換してから選んでください）。';
+    }
+  });
+}
+
 async function setupArticleForm(form) {
   const textarea = form.querySelector('#body_html');
   const titleInput = form.querySelector('#title');

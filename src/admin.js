@@ -6,10 +6,9 @@ import { nowIso, jstLocalToIso, isoToJstLocal, jstDateKey } from './lib/time.js'
 import * as db from './db.js';
 import { adminLayout, listView, formView, termsView, forbiddenPage, editorScripts } from './views/admin.js';
 import { articlePage } from './views/pages.js';
+import { putPhoto, deletePhoto, hasPhotoStore, PHOTO_TYPES, MAX_PHOTO_BYTES } from './photos.js';
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const IMAGE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const FLASH = {
   save: '保存しました。',
@@ -66,7 +65,7 @@ export async function handleAdmin(context, url) {
   if ((m = path.match(/^\/admin\/articles\/(\d+)\/delete\/$/)) && method === 'POST') {
     const article = await db.adminGetArticle(env.DB, Number(m[1]));
     if (article && !article.public_id) {
-      if (article.image_key) await deleteImage(env, article.image_key);
+      if (article.image_key) await deletePhoto(env, article.image_key);
       await db.deleteArticle(env.DB, article.id);
     }
     return redirect(url, '/admin/?done=deleted');
@@ -179,9 +178,9 @@ async function saveArticle(env, url, user, request, article) {
 
   const file = v.image && typeof v.image === 'object' && v.image.size > 0 ? v.image : null;
   if (file) {
-    if (!IMAGE_TYPES[file.type]) errors.image = '写真は JPEG・PNG・WebP のいずれかにしてください。';
-    else if (file.size > MAX_IMAGE_BYTES) errors.image = '写真は5MBまでです。';
-    else if (!env.IMAGES) errors.image = '写真の保存先（R2、バインディング名 IMAGES）がつながっていません。';
+    if (!PHOTO_TYPES[file.type]) errors.image = '写真は JPEG・PNG・WebP のいずれかにしてください。';
+    else if (file.size > MAX_PHOTO_BYTES) errors.image = '写真が大きすぎます（1MBまで）。ブラウザでの自動縮小がうまくいかなかった可能性があります。別のブラウザで試すか、小さくした写真を選んでください。';
+    else if (!hasPhotoStore(env)) errors.image = '写真の保存先（D1 データベース、バインディング名 PHOTOS）がつながっていません。';
   }
 
   if (Object.keys(errors).length) {
@@ -237,12 +236,12 @@ async function saveArticle(env, url, user, request, article) {
   // 写真
   let imageKey = current.image_key;
   if (file) {
-    const key = `articles/${id}/${crypto.randomUUID()}.${IMAGE_TYPES[file.type]}`;
-    await env.IMAGES.put(key, await file.arrayBuffer(), { httpMetadata: { contentType: file.type } });
-    if (imageKey) await deleteImage(env, imageKey);
+    const key = `articles/${id}/${crypto.randomUUID()}.${PHOTO_TYPES[file.type]}`;
+    await putPhoto(env, key, file);
+    if (imageKey) await deletePhoto(env, imageKey);
     imageKey = key;
   } else if (v.remove_image && imageKey) {
-    await deleteImage(env, imageKey);
+    await deletePhoto(env, imageKey);
     imageKey = null;
   }
 
@@ -261,14 +260,6 @@ async function saveArticle(env, url, user, request, article) {
   await db.setArticleTags(env.DB, id, [...tagIds]);
 
   return redirect(url, `/admin/articles/${id}/?done=${action}`);
-}
-
-async function deleteImage(env, key) {
-  try {
-    if (env.IMAGES) await env.IMAGES.delete(key);
-  } catch (err) {
-    console.error('image delete failed', err);
-  }
 }
 
 async function preview(env, url, request) {
