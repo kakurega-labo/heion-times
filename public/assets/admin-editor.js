@@ -206,15 +206,18 @@ async function setupArticleForm(form) {
     const button = event.target.closest('[data-cmd]');
     if (!button || !editor || button.disabled) return;
     const run = () => editor.chain().focus();
+    // 本文・見出し・小見出しは段落ごとにかかる。コピペした文章は改行が「段落内の改行」になっていて
+    // 段落全体が見出しになってしまうので、先に改行のところで段落を分けてから、選んだ行だけにかける。
+    const block = () => run().command(splitLineBreaks);
     switch (button.dataset.cmd) {
       case 'p':
-        run().setParagraph().run();
+        block().setParagraph().run();
         break;
       case 'h2':
-        run().toggleHeading({ level: 2 }).run();
+        block().toggleHeading({ level: 2 }).run();
         break;
       case 'h3':
-        run().toggleHeading({ level: 3 }).run();
+        block().toggleHeading({ level: 3 }).run();
         break;
       case 'bold':
         run().toggleBold().run();
@@ -248,6 +251,29 @@ async function setupArticleForm(form) {
       }
     }
   });
+
+  // 選択範囲にかかる段落の中の改行（hardBreak）を、段落の区切りに変える
+  function splitLineBreaks({ tr }) {
+    const { from, to } = tr.selection;
+    const breaks = [];
+    tr.doc.nodesBetween(from, to, (node, pos) => {
+      if (!node.isTextblock) return true;
+      const start = pos + 1;
+      const end = pos + 1 + node.content.size;
+      node.forEach((child, offset) => {
+        if (child.type.name === 'hardBreak') breaks.push({ at: start + offset, start, end });
+      });
+      return false;
+    });
+    // 後ろから処理すると、前の位置がずれない
+    breaks.sort((a, b) => b.at - a.at);
+    for (const br of breaks) {
+      const atEdge = br.at === br.start || br.at + 1 === br.end; // 行頭・行末の改行は消すだけ
+      tr.delete(br.at, br.at + 1);
+      if (!atEdge) tr.split(br.at);
+    }
+    return true;
+  }
 
   // ---- 編集枠の大きさ ----
   // ツールバーはいつも編集枠のいちばん上にあり、本文は枠の中でスクロールする。

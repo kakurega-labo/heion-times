@@ -121,7 +121,11 @@ details[open] summary { margin-bottom: 8px; }
 
 @media (max-width: 640px) {
   .admin-header__inner, .admin-main { padding-left: 16px; padding-right: 16px; }
-  .admin-nav { flex-wrap: nowrap; overflow-x: auto; order: 3; flex-basis: 100%; }
+  /* 画面の端から端まで使い、横にだけスクロール */
+  .admin-nav { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scrollbar-width: none; order: 3; flex-basis: auto; width: calc(100% + 32px); margin: 0 -16px; padding: 0; }
+  .admin-nav::-webkit-scrollbar { display: none; }
+  .admin-logout { margin-left: auto; }
+  .admin-nav a { flex: none; }
   .admin-nav a { white-space: nowrap; }
   .article-form__main { padding: 16px; }
 
@@ -141,7 +145,7 @@ details[open] summary { margin-bottom: 8px; }
   .table--articles .table__score { display: none; }
   .table--articles .table__view { grid-area: view; font-size: 13px; }
   .table--articles .table__view a { display: inline-flex; align-items: center; min-height: 36px; padding: 0 4px; }
-  .editor__toolbar { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .editor__toolbar { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .editor__toolbar::-webkit-scrollbar { display: none; }
   .editor__toolbar button { flex: none; padding: 4px 10px; }
   .editor__content { padding: 14px 16px; min-height: 280px; }
