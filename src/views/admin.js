@@ -220,8 +220,8 @@ export function formView({ article, values, places, tags, errors = {} }) {
           }
           <div class="field">
             <label for="image">${a?.image_key ? '写真を差し替える' : '写真を選ぶ'}</label>
-            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp" data-photo-input>
-            <p class="hint" data-photo-status>JPEG・PNG・WebP。選ぶと自動で縮小（長辺1600px）してから保存します。横長（16:9）がきれいに表示されます。</p>
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp,.heic,.heif" data-photo-input>
+            <p class="hint" data-photo-status>JPEG・PNG・WebP・HEIC（iPhoneの写真）。選ぶと自動で縮小（長辺1600px）してから保存します。横長（16:9）がきれいに表示されます。</p>
             <img class="panel__image" data-photo-preview alt="" hidden>
           </div>
           ${field(errors, 'image')}

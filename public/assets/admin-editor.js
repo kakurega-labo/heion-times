@@ -27,8 +27,27 @@ function setupPhotoInput(input) {
 
   const toBlob = (canvas, type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
 
+  const isHeic = (file) => /image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
+
+  // HEIC（iPhoneの写真形式）をJPEGに変換する。必要なときだけ変換用の部品を読み込む。
+  async function heicToJpeg(file) {
+    status.textContent = 'iPhoneの写真形式（HEIC）を変換しています…';
+    const { heicTo } = await import('https://esm.sh/heic-to@1');
+    return heicTo({ blob: file, type: 'image/jpeg', quality: 0.92 });
+  }
+
+  async function decode(file) {
+    // Safari など HEIC をそのまま読めるブラウザでは変換しない
+    try {
+      return await createImageBitmap(file, { imageOrientation: 'from-image' });
+    } catch (err) {
+      if (!isHeic(file)) throw err;
+    }
+    return createImageBitmap(await heicToJpeg(file), { imageOrientation: 'from-image' });
+  }
+
   async function shrink(file) {
-    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const bitmap = await decode(file);
     let side = MAX_SIDE;
     let best = null;
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -79,7 +98,9 @@ function setupPhotoInput(input) {
     } catch (err) {
       console.error(err);
       input.value = '';
-      status.textContent = 'この写真は読み込めませんでした（iPhoneのHEIC形式などは、JPEGに変換してから選んでください）。';
+      status.textContent = isHeic(file)
+        ? 'HEIC形式の写真を変換できませんでした。通信状態を確認してもう一度選ぶか、iPhoneから直接選んでください。'
+        : 'この写真は読み込めませんでした。JPEG・PNG・WebP・HEICの写真を選んでください。';
     }
   });
 }
