@@ -236,6 +236,15 @@ export function aboutPage({ origin }) {
   return layout({ origin, path: '/about/', nav: 'about', title: '平穏タイムズについて', body });
 }
 
+export function deletedPage({ origin, path }) {
+  const body = html`<div class="notfound">
+    <h1 class="page-title">この記事は削除されました</h1>
+    <p>この記事は、編集部の判断で削除されました。ほかのニュースは、おおむね平穏に掲載中です。</p>
+    <a class="button-outline" href="/">トップへ戻る</a>
+  </div>`;
+  return layout({ origin, path, title: 'この記事は削除されました', body, noindex: true });
+}
+
 export function notFoundPage({ origin, path }) {
   const body = html`<div class="notfound">
     <h1 class="page-title">お探しのページは見つかりませんでした</h1>

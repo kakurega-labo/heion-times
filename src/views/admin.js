@@ -245,10 +245,22 @@ export function formView({ article, values, places, tags, errors = {} }) {
       </aside>
     </form>
     ${
-      a && !a.public_id
-        ? html`<form class="delete-form" method="post" action="/admin/articles/${a.id}/delete/" data-confirm="この下書きを削除します。元に戻せません。よろしいですか？">
-            <button class="btn btn--danger btn--ghost" type="submit">この下書きを削除</button>
-          </form>`
+      a
+        ? html`<section class="danger-zone" aria-labelledby="danger-h">
+            <h2 class="panel__title" id="danger-h">記事の削除</h2>
+            ${
+              a.public_id
+                ? html`<p class="hint">削除すると元に戻せません。URL（/articles/${a.public_id}/）は「この記事は削除されました」の表示になり、投票の記録も消えます。一時的に隠したいだけなら「非公開にする」を使ってください。</p>`
+                : html`<p class="hint">削除すると元に戻せません。</p>`
+            }
+            <form method="post" action="/admin/articles/${a.id}/delete/" data-confirm="${
+              a.public_id
+                ? `「${a.title || '（見出しなし）'}」を削除します。\nURLは見られなくなり、投票の記録も消えます。元に戻せません。よろしいですか？`
+                : `この下書きを削除します。元に戻せません。よろしいですか？`
+            }">
+              <button class="btn btn--danger" type="submit">この記事を削除</button>
+            </form>
+          </section>`
         : ''
     }`;
   return body;

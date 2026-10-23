@@ -113,7 +113,12 @@ async function allArticles(env, url) {
 async function article(env, url, request, publicId) {
   const now = nowIso();
   const a = await db.getVisibleArticle(env.DB, publicId, now);
-  if (!a) return notFound(url);
+  if (!a) {
+    if (await db.isRetired(env.DB, publicId)) {
+      return htmlResponse(pages.deletedPage({ origin: url.origin, path: url.pathname }), { status: 410 });
+    }
+    return notFound(url);
+  }
   const voter = readCookie(request, VOTE_COOKIE);
   const [tags, myVote, sameTown, latest, ranking] = await Promise.all([
     db.getArticleTags(env.DB, a.id),

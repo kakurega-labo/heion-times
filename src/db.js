@@ -267,15 +267,48 @@ export async function setArticleTags(db, articleId, tagIds) {
   await db.batch(stmts);
 }
 
-export const deleteArticle = (db, id) => db.prepare(`DELETE FROM articles WHERE id = ?`).bind(id).run();
+// 記事を削除する。公開したことのある記事は番号を retired_ids に記録して、二度と使わない。
+// 投票・タグのつながりも一緒に消す（写真は呼び出し側で写真用D1から消す）。
+export async function deleteArticle(db, article) {
+  const stmts = [];
+  if (article.public_id) stmts.push(db.prepare(`INSERT OR IGNORE INTO retired_ids (public_id) VALUES (?)`).bind(article.public_id));
+  stmts.push(
+    db.prepare(`DELETE FROM votes WHERE article_id = ?`).bind(article.id),
+    db.prepare(`DELETE FROM article_tags WHERE article_id = ?`).bind(article.id),
+    db.prepare(`DELETE FROM articles WHERE id = ?`).bind(article.id),
+  );
+  await db.batch(stmts);
+}
+
+// 削除済みの番号か（読者に「削除されました」と表示するため）
+export async function isRetired(db, publicId) {
+  try {
+    return !!(await db.prepare(`SELECT 1 AS x FROM retired_ids WHERE public_id = ?`).bind(publicId).first());
+  } catch {
+    return false; // 0004 未実行でも記事ページは表示できるように
+  }
+}
 
 // 記事ID（YYYYMMDDNN：日本時間の公開日8桁＋その日の何本目か2桁、例 2026102301）を採番
 export async function nextPublicId(db, publishedAtIso) {
   const key = jstDateKey(publishedAtIso);
-  const row = await db
-    .prepare(`SELECT public_id FROM articles WHERE public_id LIKE ? AND length(public_id) = 10 ORDER BY public_id DESC LIMIT 1`)
-    .bind(`${key}__`)
-    .first();
+  let row;
+  try {
+    // 削除した記事の番号も含めて、その日のいちばん大きい番号の次にする
+    row = await db
+      .prepare(
+        `SELECT public_id FROM (SELECT public_id FROM articles UNION ALL SELECT public_id FROM retired_ids)
+         WHERE public_id LIKE ? AND length(public_id) = 10 ORDER BY public_id DESC LIMIT 1`,
+      )
+      .bind(`${key}__`)
+      .first();
+  } catch {
+    // retired_ids がまだない場合（0004 未実行）。その状態では記事を削除できないので番号の重複も起きない
+    row = await db
+      .prepare(`SELECT public_id FROM articles WHERE public_id LIKE ? AND length(public_id) = 10 ORDER BY public_id DESC LIMIT 1`)
+      .bind(`${key}__`)
+      .first();
+  }
   const n = row ? parseInt(row.public_id.slice(8), 10) + 1 : 1;
   if (n > 99) throw new Error('1日に公開できる記事は99本までです');
   return `${key}${String(n).padStart(2, '0')}`;

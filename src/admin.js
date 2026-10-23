@@ -15,7 +15,7 @@ const FLASH = {
   publish: '公開しました。',
   schedule: '予約しました。',
   unpublish: '非公開にしました。',
-  deleted: '下書きを削除しました。',
+  deleted: '記事を削除しました。',
   added: '追加しました。',
   updated: '保存しました。',
   removed: '削除しました。',
@@ -74,9 +74,21 @@ export async function handleAdmin(context, url) {
 
   if ((m = path.match(/^\/admin\/articles\/(\d+)\/delete\/$/)) && method === 'POST') {
     const article = await db.adminGetArticle(env.DB, Number(m[1]));
-    if (article && !article.public_id) {
+    if (article) {
+      try {
+        await db.deleteArticle(env.DB, article);
+      } catch (err) {
+        console.error(err);
+        return page(
+          adminLayout({
+            title: '削除できませんでした',
+            user,
+            body: '記事を削除できませんでした。D1 のコンソールで migrations/0004_retired_ids.sql を実行してから、もう一度お試しください。',
+          }),
+          500,
+        );
+      }
       if (article.image_key) await deletePhoto(env, article.image_key);
-      await db.deleteArticle(env.DB, article.id);
     }
     return redirect(url, '/admin/?done=deleted');
   }

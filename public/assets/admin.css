@@ -179,3 +179,7 @@ details[open] summary { margin-bottom: 8px; }
   .term__actions .btn { flex: 1; }
   .term__meta { width: 100%; justify-content: space-between; min-height: 32px; }
 }
+
+/* ---- 記事の削除 ---- */
+.danger-zone { margin-top: 32px; padding: 16px 18px; background: #fff; border: 1px solid #e3c2ae; display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
+.danger-zone form { margin: 0; }
