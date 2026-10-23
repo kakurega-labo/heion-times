@@ -3,7 +3,7 @@ import { htmlResponse } from './lib/html.js';
 import { nowIso } from './lib/time.js';
 import * as db from './db.js';
 import * as pages from './views/pages.js';
-import { placesBox, rankingBox, calmPercent } from './views/components.js';
+import { tagsBox, rankingBox, calmPercent, LEVELS } from './views/components.js';
 import { handleAdmin } from './admin.js';
 import { servePhoto } from './photos.js';
 
@@ -38,6 +38,8 @@ export async function handle(context) {
     if ((m = path.match(/^\/articles\/(\d{8}-\d{2})\/$/)) && method === 'GET') return await article(env, url, request, m[1]);
     if ((m = path.match(/^\/articles\/(\d{8}-\d{2})\/vote\/$/)) && method === 'POST') return await vote(env, url, request, m[1]);
     if (path === '/places/' && method === 'GET') return await placesIndex(env, url);
+    if (path === '/tags/' && method === 'GET') return await tagsIndex(env, url);
+    if ((m = path.match(/^\/ranking\/([a-z]+)\/$/)) && method === 'GET') return await levelPage(env, url, m[1]);
     if ((m = path.match(/^\/places\/([a-z0-9-]+)\/$/)) && method === 'GET') return await placePage(env, url, m[1]);
     if ((m = path.match(/^\/tags\/([a-z0-9-]+)\/$/)) && method === 'GET') return await tagPage(env, url, m[1]);
     if (path === '/ranking/' && method === 'GET') return await rankingPage(env, url);
@@ -74,9 +76,9 @@ function setupNeeded() {
 
 const pageParam = (url) => Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
 
-async function sideBoxes(env, now) {
-  const [ranking, places] = await Promise.all([db.listRanking(env.DB, { now }), db.listPlacesWithCounts(env.DB, now)]);
-  return [rankingBox(ranking), placesBox(places)];
+async function sideBoxes(env, now, { ranking: withRanking = true } = {}) {
+  const [ranking, tags] = await Promise.all([withRanking ? db.listRanking(env.DB, { now }) : [], db.listTagsWithCounts(env.DB, now)]);
+  return [withRanking ? rankingBox(ranking) : '', tagsBox(tags)];
 }
 
 // ---- 読者側 ----------------------------------------------------------------
@@ -84,13 +86,13 @@ async function sideBoxes(env, now) {
 async function home(env, url) {
   const now = nowIso();
   const top = await db.getTopArticle(env.DB, now);
-  const [latest, ranking, places] = await Promise.all([
+  const [latest, ranking, tags] = await Promise.all([
     db.listLatest(env.DB, { limit: 11, excludeId: top ? top.id : 0, now }),
     db.listRanking(env.DB, { now }),
-    db.listPlacesWithCounts(env.DB, now),
+    db.listTagsWithCounts(env.DB, now),
   ]);
   return htmlResponse(
-    pages.homePage({ origin: url.origin, top, latest: latest.slice(0, 10), hasMore: latest.length > 10, ranking, places }),
+    pages.homePage({ origin: url.origin, top, latest: latest.slice(0, 10), hasMore: latest.length > 10, ranking, tags }),
   );
 }
 
@@ -142,7 +144,7 @@ async function placePage(env, url, slug) {
   ]);
   return htmlResponse(
     pages.listPage({
-      origin: url.origin, path: `/places/${slug}/`, nav: 'places', title: `${place.name}のニュース`,
+      origin: url.origin, path: `/places/${slug}/`, nav: '', title: `${place.name}のニュース`,
       heading: `${place.name}のニュース`, lead: `${place.name}で起きた出来事 ${total}件`,
       articles, page, total, perPage: PER_PAGE, showPlace: false, side,
     }),
@@ -161,15 +163,35 @@ async function tagPage(env, url, slug) {
   ]);
   return htmlResponse(
     pages.listPage({
-      origin: url.origin, path: `/tags/${slug}/`, nav: '', title: `「${tag.name}」のニュース`,
+      origin: url.origin, path: `/tags/${slug}/`, nav: 'tags', title: `「${tag.name}」のニュース`,
       heading: `「${tag.name}」のニュース`, lead: `${total}件`, articles, page, total, perPage: PER_PAGE, side,
     }),
   );
 }
 
+async function tagsIndex(env, url) {
+  const tags = await db.listTagsWithCounts(env.DB);
+  return htmlResponse(pages.tagsIndexPage({ origin: url.origin, tags }));
+}
+
 async function rankingPage(env, url) {
-  const ranking = await db.listRanking(env.DB, { limit: 20 });
-  return htmlResponse(pages.rankingPage({ origin: url.origin, ranking }));
+  const now = nowIso();
+  const [ranking, side] = await Promise.all([db.listRanking(env.DB, { limit: 20, now }), sideBoxes(env, now, { ranking: false })]);
+  return htmlResponse(pages.rankingPage({ origin: url.origin, ranking, side }));
+}
+
+async function levelPage(env, url, slug) {
+  const level = LEVELS.find((l) => l.slug === slug);
+  if (!level) return notFound(url);
+  const now = nowIso();
+  const page = pageParam(url);
+  const [articles, total, side] = await Promise.all([
+    db.listByLevel(env.DB, level.min, level.max, { limit: PER_PAGE, offset: (page - 1) * PER_PAGE, now }),
+    db.countByLevel(env.DB, level.min, level.max, now),
+    sideBoxes(env, now),
+  ]);
+  if (page > 1 && !articles.length) return notFound(url);
+  return htmlResponse(pages.levelPage({ origin: url.origin, level, articles, page, total, perPage: PER_PAGE, side }));
 }
 
 // ---- 投票 ------------------------------------------------------------------
@@ -216,6 +238,7 @@ async function vote(env, url, request, publicId) {
     await db.upsertVote(env.DB, { articleId: a.id, voter, ipHash, choice });
     myVote = choice;
   }
+  if (!error) await db.refreshVoteCounts(env.DB, a.id);
 
   const headers = new Headers();
   if (isNewVoter) {

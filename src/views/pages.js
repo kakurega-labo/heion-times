@@ -2,13 +2,13 @@ import { html, raw, excerpt } from '../lib/html.js';
 import { formatDateTime, formatMonthDay } from '../lib/time.js';
 import { layout, SITE_NAME, CATCHCOPY } from './layout.js';
 import {
-  articleUrl, placeUrl, tagUrl, imageUrl, score, articleList, rankingBox, placesBox, pager,
-  calmPercent, flatIcon, waveIcon,
+  articleUrl, placeUrl, tagUrl, imageUrl, score, articleList, rankingBox, tagsBox, pager,
+  calmPercent, flatIcon, waveIcon, LEVELS,
 } from './components.js';
 
 // ---- トップページ ----------------------------------------------------------
 
-export function homePage({ origin, top, latest, ranking, places, hasMore }) {
+export function homePage({ origin, top, latest, ranking, tags, hasMore }) {
   const topBlock = top
     ? html`<article class="lead">
         ${top.image_key ? html`<a class="lead__image" href="${articleUrl(top)}" tabindex="-1"><img src="${imageUrl(top.image_key)}" alt="${top.image_caption || ''}" width="1200" height="675"></a>` : ''}
@@ -33,7 +33,7 @@ export function homePage({ origin, top, latest, ranking, places, hasMore }) {
     </div>
     <aside class="columns__side">
       ${rankingBox(ranking)}
-      ${placesBox(places)}
+      ${tagsBox(tags)}
     </aside>
   </div>`;
 
@@ -140,8 +140,10 @@ export function articlePage({ origin, a, tags, myVote, sameTown, latest, ranking
 export function listPage({ origin, path, nav = '', title, heading, lead = '', articles, page, total, perPage, showPlace = true, side }) {
   const body = html`<div class="columns">
     <div class="columns__main">
-      <h1 class="page-title">${heading}</h1>
-      ${lead ? html`<p class="page-lead">${lead}</p>` : ''}
+      <div class="page-head">
+        <h1 class="page-title">${heading}</h1>
+        ${lead ? html`<p class="page-lead">${lead}</p>` : ''}
+      </div>
       ${articleList(articles, { showPlace })}
       ${pager(page, total, perPage, path)}
     </div>
@@ -151,7 +153,7 @@ export function listPage({ origin, path, nav = '', title, heading, lead = '', ar
 }
 
 export function placesIndexPage({ origin, places }) {
-  const body = html`<h1 class="page-title">地名から探す</h1>
+  const body = html`<h1 class="page-title">地名一覧</h1>
     <p class="page-lead">平穏タイムズに登場した町の一覧です。</p>
     ${
       places.length
@@ -160,17 +162,61 @@ export function placesIndexPage({ origin, places }) {
           )}</ul>`
         : html`<p class="empty">まだありません。</p>`
     }`;
-  return layout({ origin, path: '/places/', nav: 'places', title: '地名から探す', body });
+  return layout({ origin, path: '/places/', nav: 'places', title: '地名一覧', body });
 }
 
-export function rankingPage({ origin, ranking }) {
+export function tagsIndexPage({ origin, tags }) {
+  const body = html`<h1 class="page-title">話題</h1>
+    <p class="page-lead">読みたい話題を選んでください。</p>
+    ${
+      tags.length
+        ? html`<ul class="place-grid">${tags.map(
+            (t) => html`<li><a href="${tagUrl(t.slug)}"><span class="place-grid__name">${t.name}</span><span class="meta">${t.count}件</span></a></li>`,
+          )}</ul>`
+        : html`<p class="empty">まだありません。</p>`
+    }`;
+  return layout({ origin, path: '/tags/', nav: 'tags', title: '話題', body });
+}
+
+function rankingTabs(active) {
+  const tabs = [{ slug: '', label: '今週のランキング' }, ...LEVELS];
+  return html`<nav class="tabs" aria-label="ランキングの種類">
+    ${tabs.map(
+      (t) => html`<a href="/ranking/${t.slug ? `${t.slug}/` : ''}"${t.slug === active ? html` aria-current="page"` : ''}>${
+        t.slug === 'major' ? waveIcon() : t.slug === 'calm' ? flatIcon() : ''
+      }${t.label}</a>`,
+    )}
+  </nav>`;
+}
+
+export function levelPage({ origin, level, articles, page, total, perPage, side }) {
+  const path = `/ranking/${level.slug}/`;
   const body = html`<div class="columns">
     <div class="columns__main">
-      <h1 class="page-title">ランキング</h1>
-      <p class="page-lead">直近7日間に公開された記事のうち、読者の投票で「平穏ではない」の割合が高かったニュースです。</p>
+      <div class="page-head">
+        <h1 class="page-title">ランキング</h1>
+        ${rankingTabs(level.slug)}
+        <p class="page-lead">${level.note}（${level.range}）。新しい順に${total}件。</p>
+      </div>
+      ${articleList(articles)}
+      ${pager(page, total, perPage, path)}
+    </div>
+    <aside class="columns__side">${side}</aside>
+  </div>`;
+  return layout({ origin, path: page > 1 ? `${path}?page=${page}` : path, nav: 'ranking', title: `${level.label}のニュース`, body });
+}
+
+export function rankingPage({ origin, ranking, side }) {
+  const body = html`<div class="columns">
+    <div class="columns__main">
+      <div class="page-head">
+        <h1 class="page-title">ランキング</h1>
+        ${rankingTabs('')}
+        <p class="page-lead">直近7日間に公開された記事のうち、読者の投票で「平穏ではない」の割合が高かったニュースです。</p>
+      </div>
       ${rankingBox(ranking, { heading: '今週もっとも平穏ではなかったニュース', id: 'rank-page-h' })}
     </div>
-    <aside class="columns__side"></aside>
+    <aside class="columns__side">${side}</aside>
   </div>`;
   return layout({ origin, path: '/ranking/', nav: 'ranking', title: 'ランキング', body });
 }
@@ -184,7 +230,7 @@ export function aboutPage({ origin }) {
       <h2>平穏度について</h2>
       <p>各記事の最後で、読者のみなさんに「これは平穏」「平穏ではない」のどちらかを選んでいただいています。その割合が「平穏度」です。平穏度が低い記事ほど、町にとっては大事件です。</p>
       <h2>ご注意</h2>
-      <p>掲載している記事・地名・人物・団体はすべて架空のものです。実在の地名や出来事とは関係ありません。</p>
+      <p>掲載記事には架空の出来事が含まれます。</p>
     </div>
   </article>`;
   return layout({ origin, path: '/about/', nav: 'about', title: '平穏タイムズについて', body });

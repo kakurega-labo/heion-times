@@ -59,6 +59,27 @@ export function rankingBox(ranking, { heading = '今週もっとも平穏では�
   </section>`;
 }
 
+// 平穏度の区分（平穏度 = 「これは平穏」の割合）
+export const LEVELS = [
+  { slug: 'major', label: '大事件', min: 0, max: 40, range: '平穏度 0〜39%', note: '町が大きく揺れたニュース' },
+  { slug: 'shaken', label: 'ちょっと動揺', min: 40, max: 70, range: '平穏度 40〜69%', note: '町が少しざわついたニュース' },
+  { slug: 'calm', label: '平穏', min: 70, max: 101, range: '平穏度 70〜100%', note: 'きょうも平穏だったニュース' },
+];
+
+export function tagsBox(tags, { limit = 12 } = {}) {
+  return html`<section class="box" aria-labelledby="tags-h">
+    <h2 class="box__title" id="tags-h">話題から探す</h2>
+    ${
+      tags.length
+        ? html`<ul class="pills">${tags.slice(0, limit).map(
+            (t) => html`<li><a href="${tagUrl(t.slug)}">${t.name}<span class="pills__count">${t.count}</span></a></li>`,
+          )}</ul>
+          <a class="box__more" href="/tags/">すべての話題</a>`
+        : html`<p class="empty">まだありません。</p>`
+    }
+  </section>`;
+}
+
 export function placesBox(places) {
   return html`<section class="box" aria-labelledby="places-h">
     <h2 class="box__title" id="places-h">地名から探す</h2>

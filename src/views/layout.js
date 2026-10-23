@@ -9,9 +9,13 @@ const FONTS =
 
 const NAV = [
   { key: 'latest', href: '/', label: '最新' },
-  { key: 'places', href: '/places/', label: '地名から探す' },
+  { key: 'tags', href: '/tags/', label: '話題' },
   { key: 'ranking', href: '/ranking/', label: 'ランキング' },
+];
+
+const FOOTER_LINKS = [
   { key: 'about', href: '/about/', label: '平穏タイムズについて' },
+  { key: 'places', href: '/places/', label: '地名一覧' },
 ];
 
 export const waveSvg = (cls = 'wordmark__wave') => html`<svg class="${cls}" viewBox="0 0 460 14" preserveAspectRatio="none" aria-hidden="true"><path d="M 2 7 Q 59 3 116 7 T 230 7 T 344 7 T 458 7" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/></svg>`;
@@ -68,8 +72,13 @@ ${body}
 </main>
 <footer class="site-footer">
   <div class="container site-footer__inner">
-    <span>${SITE_NAME}　${CATCHCOPY}</span>
-    <span>掲載記事はすべて架空の出来事です。</span>
+    <nav class="site-footer__nav" aria-label="サイト情報">
+      ${FOOTER_LINKS.map((n) => html`<a href="${n.href}"${n.key === nav ? html` aria-current="page"` : ''}>${n.label}</a>`)}
+    </nav>
+    <div class="site-footer__meta">
+      <span>${SITE_NAME}　${CATCHCOPY}</span>
+      <span>掲載記事には架空の出来事が含まれます。</span>
+    </div>
   </div>
 </footer>
 </body>

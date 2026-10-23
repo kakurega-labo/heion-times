@@ -5,8 +5,7 @@ const ARTICLE_COLUMNS = `
   a.id, a.public_id, a.title, a.body_html, a.image_key, a.image_caption, a.place_id,
   a.status, a.is_top, a.published_at, a.created_at, a.updated_at,
   p.name AS place_name, p.slug AS place_slug,
-  (SELECT COUNT(*) FROM votes v WHERE v.article_id = a.id AND v.choice = 'calm')  AS calm,
-  (SELECT COUNT(*) FROM votes v WHERE v.article_id = a.id AND v.choice = 'rough') AS rough
+  a.calm_count AS calm, a.rough_count AS rough
 `;
 
 const FROM = `FROM articles a LEFT JOIN places p ON p.id = a.place_id`;
@@ -72,12 +71,42 @@ export function listRanking(db, { limit = 5, days = 7, now = nowIso() } = {}) {
   return all(
     db
       .prepare(
-        `SELECT * FROM (SELECT ${ARTICLE_COLUMNS} ${FROM} WHERE ${VISIBLE} AND a.published_at >= ?)
-         WHERE rough > 0
-         ORDER BY (rough * 1.0 / (calm + rough)) DESC, rough DESC, published_at DESC
+        `SELECT ${ARTICLE_COLUMNS} ${FROM}
+         WHERE ${VISIBLE} AND a.published_at >= ? AND a.rough_count > 0
+         ORDER BY (a.rough_count * 1.0 / (a.calm_count + a.rough_count)) DESC, a.rough_count DESC, a.published_at DESC
          LIMIT ?`,
       )
       .bind(now, daysAgoIso(days, now), limit),
+  );
+}
+
+// 平穏度（%）の範囲で絞り込み（min 以上 max 未満。max=101 で100%を含む）
+const LEVEL_WHERE = `a.calm_count + a.rough_count > 0
+  AND (a.calm_count * 100.0 / (a.calm_count + a.rough_count)) >= ?
+  AND (a.calm_count * 100.0 / (a.calm_count + a.rough_count)) < ?`;
+
+export function listByLevel(db, min, max, { limit = 30, offset = 0, now = nowIso() } = {}) {
+  return all(
+    db
+      .prepare(`SELECT ${ARTICLE_COLUMNS} ${FROM} WHERE ${VISIBLE} AND ${LEVEL_WHERE} ORDER BY a.published_at DESC LIMIT ? OFFSET ?`)
+      .bind(now, min, max, limit, offset),
+  );
+}
+
+export async function countByLevel(db, min, max, now = nowIso()) {
+  const row = await db.prepare(`SELECT COUNT(*) AS n FROM articles a WHERE ${VISIBLE} AND ${LEVEL_WHERE}`).bind(now, min, max).first();
+  return row ? row.n : 0;
+}
+
+export function listTagsWithCounts(db, now = nowIso()) {
+  return all(
+    db
+      .prepare(
+        `SELECT t.id, t.name, t.slug, COUNT(a.id) AS count
+         FROM tags t JOIN article_tags at ON at.tag_id = t.id JOIN articles a ON a.id = at.article_id AND ${VISIBLE}
+         GROUP BY t.id ORDER BY count DESC, t.name`,
+      )
+      .bind(now),
   );
 }
 
@@ -123,15 +152,7 @@ export function getArticleTags(db, articleId) {
 // ---- 投票 ------------------------------------------------------------------
 
 export async function getVoteCounts(db, articleId) {
-  const row = await db
-    .prepare(
-      `SELECT
-         SUM(CASE WHEN choice = 'calm'  THEN 1 ELSE 0 END) AS calm,
-         SUM(CASE WHEN choice = 'rough' THEN 1 ELSE 0 END) AS rough
-       FROM votes WHERE article_id = ?`,
-    )
-    .bind(articleId)
-    .first();
+  const row = await db.prepare(`SELECT calm_count AS calm, rough_count AS rough FROM articles WHERE id = ?`).bind(articleId).first();
   return { calm: row?.calm || 0, rough: row?.rough || 0 };
 }
 
@@ -163,6 +184,18 @@ export function upsertVote(db, { articleId, voter, ipHash, choice }) {
 
 export const deleteVote = (db, articleId, voter) =>
   db.prepare(`DELETE FROM votes WHERE article_id = ? AND voter = ?`).bind(articleId, voter).run();
+
+// 記事の表に持たせている投票数を、その記事の票から数え直す
+export const refreshVoteCounts = (db, articleId) =>
+  db
+    .prepare(
+      `UPDATE articles SET
+         calm_count  = (SELECT COUNT(*) FROM votes WHERE article_id = ?1 AND choice = 'calm'),
+         rough_count = (SELECT COUNT(*) FROM votes WHERE article_id = ?1 AND choice = 'rough')
+       WHERE id = ?1`,
+    )
+    .bind(articleId)
+    .run();
 
 // ---- 管理画面 --------------------------------------------------------------
 
