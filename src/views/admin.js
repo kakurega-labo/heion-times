@@ -49,7 +49,7 @@ ${scripts}
 }
 
 export function statusInfo(a, now = nowIso()) {
-  if (a.status === 'published' && a.published_at > now) return { key: 'scheduled', label: `予約 ${formatDateTime(a.published_at)}` };
+  if (a.status === 'published' && a.published_at > now) return { key: 'scheduled', label: '予約' };
   if (a.status === 'published') return { key: 'published', label: '公開中' };
   if (a.status === 'unpublished') return { key: 'unpublished', label: '非公開' };
   return { key: 'draft', label: '下書き' };
@@ -242,25 +242,28 @@ export function formView({ article, values, places, tags, errors = {} }) {
           <label class="check"><input type="checkbox" name="is_top" value="1"${v.is_top ? html` checked` : ''}> この記事をトップ記事にする</label>
           <p class="hint">ほかの記事のトップ指定は自動で外れます。</p>
         </section>
+        ${
+          a
+            ? html`<section class="panel panel--danger" aria-labelledby="danger-h">
+                <h2 class="panel__title" id="danger-h">記事の削除</h2>
+                ${
+                  a.public_id
+                    ? html`<p class="hint">削除すると元に戻せません。URL（/articles/${a.public_id}/）は「この記事は削除されました」の表示になり、投票の記録も消えます。一時的に隠したいだけなら「非公開にする」を使ってください。</p>`
+                    : html`<p class="hint">削除すると元に戻せません。</p>`
+                }
+                <button class="btn btn--danger" type="submit" form="delete-article" formnovalidate>この記事を削除</button>
+              </section>`
+            : ''
+        }
       </aside>
     </form>
     ${
       a
-        ? html`<section class="danger-zone" aria-labelledby="danger-h">
-            <h2 class="panel__title" id="danger-h">記事の削除</h2>
-            ${
-              a.public_id
-                ? html`<p class="hint">削除すると元に戻せません。URL（/articles/${a.public_id}/）は「この記事は削除されました」の表示になり、投票の記録も消えます。一時的に隠したいだけなら「非公開にする」を使ってください。</p>`
-                : html`<p class="hint">削除すると元に戻せません。</p>`
-            }
-            <form method="post" action="/admin/articles/${a.id}/delete/" data-confirm="${
-              a.public_id
-                ? `「${a.title || '（見出しなし）'}」を削除します。\nURLは見られなくなり、投票の記録も消えます。元に戻せません。よろしいですか？`
-                : `この下書きを削除します。元に戻せません。よろしいですか？`
-            }">
-              <button class="btn btn--danger" type="submit">この記事を削除</button>
-            </form>
-          </section>`
+        ? html`<form id="delete-article" method="post" action="/admin/articles/${a.id}/delete/" data-confirm="${
+            a.public_id
+              ? `「${a.title || '（見出しなし）'}」を削除します。\nURLは見られなくなり、投票の記録も消えます。元に戻せません。よろしいですか？`
+              : `この下書きを削除します。元に戻せません。よろしいですか？`
+          }" hidden></form>`
         : ''
     }`;
   return body;

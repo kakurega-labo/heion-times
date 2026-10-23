@@ -184,6 +184,9 @@ details[open] summary { margin-bottom: 8px; }
   .term__meta { width: 100%; justify-content: space-between; min-height: 32px; }
 }
 
-/* ---- 記事の削除 ---- */
-.danger-zone { margin-top: 32px; padding: 16px 18px; background: #fff; border: 1px solid #e3c2ae; display: flex; flex-direction: column; gap: 10px; max-width: 640px; }
-.danger-zone form { margin: 0; }
+/* ---- 記事の削除（右側の設定欄のいちばん下） ---- */
+.panel--danger { border-color: #e3c2ae; }
+.panel--danger .btn { width: 100%; }
+
+/* ---- 広い画面：左（見出し・本文）を最後まで見たら止め、右だけスクロール ---- */
+.article-form__main--sticky { position: sticky; top: var(--main-sticky-top, 16px); }

@@ -275,6 +275,24 @@ async function setupArticleForm(form) {
     return true;
   }
 
+  // ---- 左右2列のときのスクロール ----
+  // 左（見出し・本文）がすべて見えたところで左を止め、そのあとは右（設定欄）だけが流れる。
+  // 左が画面より高いときは、左の下端が画面の下端に来た位置で止める。
+  const mainCol = form.querySelector('.article-form__main');
+  const sideCol = form.querySelector('.article-form__side');
+  function updateSticky() {
+    const sideBySide = mainCol && sideCol && Math.abs(mainCol.offsetTop - sideCol.offsetTop) < 4;
+    const useSticky = sideBySide && sideCol.offsetHeight > mainCol.offsetHeight;
+    mainCol.classList.toggle('article-form__main--sticky', !!useSticky);
+    if (useSticky) {
+      const top = Math.min(16, window.innerHeight - mainCol.offsetHeight - 16);
+      mainCol.style.setProperty('--main-sticky-top', `${top}px`);
+    }
+  }
+  updateSticky();
+  window.addEventListener('resize', updateSticky);
+  if (window.ResizeObserver) new ResizeObserver(updateSticky).observe(form);
+
   // ---- 編集枠の大きさ ----
   // ツールバーはいつも編集枠のいちばん上にあり、本文は枠の中でスクロールする。
   // スマホで入力中は、キーボードの上の見えている範囲にちょうど収まるよう枠の高さを合わせる。
