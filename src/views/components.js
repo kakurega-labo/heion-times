@@ -40,7 +40,7 @@ export function articleList(articles, opts) {
   return html`<ul class="rows">${articles.map((a) => articleRow(a, opts))}</ul>`;
 }
 
-export function rankingBox(ranking, { heading = '今週もっとも平穏ではなかったニュース', id = 'ranking-h' } = {}) {
+export function rankingBox(ranking, { heading = '今週一番平穏ではなかったニュース', id = 'ranking-h' } = {}) {
   return html`<section class="box" aria-labelledby="${id}">
     <h2 class="box__title" id="${id}">${heading}</h2>
     ${

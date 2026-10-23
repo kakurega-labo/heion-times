@@ -214,7 +214,7 @@ export function rankingPage({ origin, ranking, side }) {
         ${rankingTabs('')}
         <p class="page-lead">直近7日間に公開された記事のうち、読者の投票で「平穏ではない」の割合が高かったニュースです。</p>
       </div>
-      ${rankingBox(ranking, { heading: '今週もっとも平穏ではなかったニュース', id: 'rank-page-h' })}
+      ${rankingBox(ranking, { heading: '今週一番平穏ではなかったニュース', id: 'rank-page-h' })}
     </div>
     <aside class="columns__side">${side}</aside>
   </div>`;
