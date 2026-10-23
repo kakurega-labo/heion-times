@@ -34,7 +34,9 @@ export function adminLayout({ title, active = '', user, body, flash = '', script
       ${MENU.map((m) => html`<a href="${m.href}"${m.key === active ? html` aria-current="page"` : ''}>${m.label}</a>`)}
       <a href="/" target="_blank" rel="noopener">サイトを見る</a>
     </nav>
-    <span class="admin-user">${user?.email || ''}</span>
+    <form method="post" action="/admin/logout/" class="admin-logout">
+      <button type="submit">ログアウト</button>
+    </form>
   </div>
 </header>
 <main class="admin-main">
@@ -286,19 +288,37 @@ export function termsView({ kind, items, errors = {}, values = {} }) {
     }`;
 }
 
-export function forbiddenPage() {
+export function loginPage({ next = '/admin/', error = '', info = '', notConfigured = false, minLength = 16 } = {}) {
   return html`<!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
-<title>管理画面に入れません</title><link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/admin.css"></head>
-<body class="admin"><main class="admin-main">
-<h1 class="admin-title">管理画面に入れません</h1>
-<p>管理画面は Cloudflare Access でログインした人だけが開けます。</p>
-<ul>
-<li>Cloudflare Zero Trust で /admin を保護するアプリケーションを作成しているか</li>
-<li>Pages の環境変数 ACCESS_TEAM_DOMAIN と ACCESS_AUD が正しく設定されているか</li>
-</ul>
-<p>を確認してください（手順は README の「管理画面を守る」にあります）。</p>
-<p><a href="/">サイトのトップへ</a></p>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">
+<title>ログイン | 平穏タイムズ 管理画面</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@800&amp;family=Zen+Kaku+Gothic+New:wght@400;500;700&amp;display=swap">
+<link rel="stylesheet" href="/assets/style.css"><link rel="stylesheet" href="/assets/admin.css"></head>
+<body class="admin admin--login"><main class="login">
+<div class="login__brand"><span class="login__name">平穏タイムズ</span><span class="admin-brand__tag">管理画面</span></div>
+${
+  notConfigured
+    ? html`<div class="login__box">
+        <h1 class="admin-title">管理画面のパスワードが未設定です</h1>
+        <p>Cloudflare Pages の <strong>設定 → 変数とシークレット</strong> に、シークレット <code>ADMIN_PASSWORD</code>（${minLength}文字以上）を追加して、再デプロイしてください。</p>
+        <p><a href="/">サイトのトップへ</a></p>
+      </div>`
+    : html`<form class="login__box" method="post" action="/admin/login/">
+        <h1 class="admin-title">ログイン</h1>
+        ${info ? html`<p class="flash" role="status">${info}</p>` : ''}
+        ${error ? html`<p class="flash flash--error" role="alert">${error}</p>` : ''}
+        <input type="hidden" name="next" value="${next}">
+        <input type="text" name="username" value="admin" autocomplete="username" hidden>
+        <div class="field">
+          <label for="password">パスワード</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password" autofocus>
+        </div>
+        <button class="btn btn--primary" type="submit">ログイン</button>
+        <p class="hint">ログインは30日間保持されます。</p>
+      </form>`
+}
+<p class="login__back"><a href="/">サイトのトップへ戻る</a></p>
 </main></body></html>`;
 }
 

@@ -108,3 +108,18 @@ details[open] summary { margin-bottom: 8px; }
   .admin-nav a { white-space: nowrap; }
   .article-form__main { padding: 16px; }
 }
+
+/* ---- ログイン ---- */
+.admin-logout { margin: 0; }
+.admin-logout button { font: inherit; font-size: 13px; color: #fff; background: transparent; border: 1px solid #6b6b6b; padding: 6px 12px; min-height: 36px; cursor: pointer; }
+.admin-logout button:hover { border-color: #fff; }
+.login { max-width: 420px; margin: 0 auto; padding: 64px 16px; display: flex; flex-direction: column; gap: 20px; }
+.login__brand { display: flex; align-items: baseline; gap: 10px; justify-content: center; }
+.login__name { font-family: var(--serif); font-weight: 800; font-size: 30px; letter-spacing: 0.06em; }
+.login__brand .admin-brand__tag { color: var(--muted); }
+.login__box { background: #fff; border: 1px solid #dddddd; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.login__box .admin-title { font-size: 20px; }
+.login__box .btn { width: 100%; }
+.login__box code { background: #f0f0f0; padding: 1px 6px; }
+.login__back { text-align: center; font-size: 14px; }
+.field input[type='password'] { font: inherit; font-size: 15px; padding: 10px 12px; min-height: 44px; border: 1px solid #bbbbbb; background: #fff; width: 100%; }

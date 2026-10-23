@@ -1,10 +1,10 @@
 // 管理画面（/admin/）の処理
 import { htmlResponse } from './lib/html.js';
-import { getAdminUser } from './lib/access.js';
+import * as auth from './lib/auth.js';
 import { sanitizeBody } from './lib/sanitize.js';
 import { nowIso, jstLocalToIso, isoToJstLocal, jstDateKey } from './lib/time.js';
 import * as db from './db.js';
-import { adminLayout, listView, formView, termsView, forbiddenPage, editorScripts } from './views/admin.js';
+import { adminLayout, listView, formView, termsView, loginPage, editorScripts } from './views/admin.js';
 import { articlePage } from './views/pages.js';
 import { putPhoto, deletePhoto, hasPhotoStore, PHOTO_TYPES, MAX_PHOTO_BYTES } from './photos.js';
 
@@ -32,12 +32,22 @@ const redirect = (url, path) => new Response(null, { status: 303, headers: { loc
 
 export async function handleAdmin(context, url) {
   const { request, env } = context;
-  const user = await getAdminUser(request, env);
-  if (!user) return page(forbiddenPage(), 403);
   if (!env.DB) return new Response('D1 データベースがつながっていません（バインディング名 DB）。', { status: 500 });
 
   const path = url.pathname;
   const method = request.method;
+
+  if (path === '/admin/login/') return login(env, url, request);
+  if (path === '/admin/logout/' && method === 'POST') {
+    return new Response(null, { status: 303, headers: { location: `${url.origin}/admin/login/?out=1`, 'set-cookie': auth.clearCookie(url) } });
+  }
+
+  const user = await auth.getAdminUser(request, env);
+  if (!user) {
+    if (method !== 'GET') return page(loginPage({ error: 'ログインの有効期限が切れました。もう一度ログインしてください。' }), 401);
+    return redirect(url, `/admin/login/?next=${encodeURIComponent(path + url.search)}`);
+  }
+
   const flash = FLASH[url.searchParams.get('done')] || '';
   let m;
 
@@ -82,6 +92,42 @@ export async function handleAdmin(context, url) {
   }
 
   return page(adminLayout({ title: '見つかりません', user, body: 'ページが見つかりません。' }), 404);
+}
+
+// ---- ログイン --------------------------------------------------------------
+
+const safeNext = (value) => (/^\/admin\/[^\s\\]*$/.test(value || '') && !String(value).startsWith('/admin/login') ? value : '/admin/');
+
+async function login(env, url, request) {
+  if (!auth.passwordConfigured(env)) {
+    return page(loginPage({ notConfigured: true, minLength: auth.MIN_PASSWORD_LENGTH }), 503);
+  }
+
+  if (request.method === 'GET') {
+    if (await auth.getAdminUser(request, env)) return redirect(url, '/admin/');
+    const info = url.searchParams.get('out') ? 'ログアウトしました。' : '';
+    return page(loginPage({ next: safeNext(url.searchParams.get('next')), info }));
+  }
+  if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+
+  const form = await request.formData();
+  const next = safeNext(String(form.get('next') || ''));
+  const ipHash = await auth.ipHashOf(request, env);
+
+  if (await auth.isLockedOut(env.DB, ipHash)) {
+    return page(loginPage({ next, error: `パスワードを何度も間違えたため、${auth.LOCKOUT_MINUTES}分ほどログインできません。時間をおいてお試しください。` }), 429);
+  }
+
+  if (!(await auth.checkPassword(env, form.get('password')))) {
+    await auth.recordFailure(env.DB, ipHash);
+    return page(loginPage({ next, error: 'パスワードが違います。' }), 401);
+  }
+
+  await auth.clearFailures(env.DB, ipHash);
+  return new Response(null, {
+    status: 303,
+    headers: { location: `${url.origin}${next}`, 'set-cookie': await auth.sessionCookie(env, url), 'cache-control': 'no-store' },
+  });
 }
 
 // ---- 記事フォーム ----------------------------------------------------------

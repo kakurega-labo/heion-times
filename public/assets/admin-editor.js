@@ -252,6 +252,13 @@ async function setupArticleForm(form) {
   titleInput.addEventListener('input', markDirty);
   form.querySelectorAll('input, select').forEach((el) => el !== titleInput && el.addEventListener('change', () => (dirty = true)));
 
+  // 保存が成功して戻ってきたとき（URLに ?done= が付く）だけ、ブラウザ内の書きかけを消す。
+  // 保存に失敗した場合（ログイン切れなど）は書きかけが残るので、復元できる。
+  if (storage && new URLSearchParams(location.search).has('done')) {
+    storage.removeItem(draftKey);
+    storage.removeItem('heion-draft-new');
+  }
+
   if (storage) {
     try {
       const saved = JSON.parse(storage.getItem(draftKey) || 'null');
@@ -281,7 +288,13 @@ async function setupArticleForm(form) {
     const isPreview = (event.submitter?.getAttribute('formaction') || '').includes('/preview/');
     if (isPreview) return;
     submitting = true;
-    if (storage) storage.removeItem(draftKey);
+    if (storage) {
+      try {
+        storage.setItem(draftKey, JSON.stringify({ title: titleInput.value, body: textarea.value, at: Date.now() }));
+      } catch {
+        /* 容量不足などは無視 */
+      }
+    }
   });
 
   window.addEventListener('beforeunload', (event) => {
