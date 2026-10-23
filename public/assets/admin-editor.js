@@ -277,21 +277,26 @@ async function setupArticleForm(form) {
 
   // ---- 左右2列のときのスクロール ----
   // 左（見出し・本文）がすべて見えたところで左を止め、そのあとは右（設定欄）だけが流れる。
-  // 左が画面より高いときは、左の下端が画面の下端に来た位置で止める。
+  // 止める位置は CSS（admin.css）で、アドレスバーの伸び縮みで変わらない画面の高さ（svh）を基準に決める。
+  // ここでは左の高さを CSS に渡すだけで、スクロール中には何も計算しない（跳ねないように）。
   const mainCol = form.querySelector('.article-form__main');
   const sideCol = form.querySelector('.article-form__side');
+  // 左右に並んでいるかは横の位置で判定する（縦の位置は、左が止まっている間ずれて見えるため使わない）
+  const isSideBySide = () => !!(mainCol && sideCol && sideCol.offsetLeft >= mainCol.offsetLeft + mainCol.offsetWidth - 4);
   function updateSticky() {
-    const sideBySide = mainCol && sideCol && Math.abs(mainCol.offsetTop - sideCol.offsetTop) < 4;
-    const useSticky = sideBySide && sideCol.offsetHeight > mainCol.offsetHeight;
-    mainCol.classList.toggle('article-form__main--sticky', !!useSticky);
-    if (useSticky) {
-      const top = Math.min(16, window.innerHeight - mainCol.offsetHeight - 16);
-      mainCol.style.setProperty('--main-sticky-top', `${top}px`);
-    }
+    // 2列のときは常に有効（左のほうが長いときは、見た目は普通のスクロールと同じ）。途中で切り替えると跳ねるため
+    const useSticky = isSideBySide();
+    mainCol.classList.toggle('article-form__main--sticky', useSticky);
+    mainCol.style.setProperty('--main-h', `${mainCol.offsetHeight}px`);
   }
   updateSticky();
-  window.addEventListener('resize', updateSticky);
-  if (window.ResizeObserver) new ResizeObserver(updateSticky).observe(form);
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => requestAnimationFrame(updateSticky));
+    ro.observe(mainCol);
+    ro.observe(sideCol);
+  } else {
+    window.addEventListener('resize', updateSticky);
+  }
 
   // ---- 編集枠の大きさ ----
   // ツールバーはいつも編集枠のいちばん上にあり、本文は枠の中でスクロールする。
@@ -311,7 +316,8 @@ async function setupArticleForm(form) {
   }
 
   function scheduleFit(align) {
-    if (!touchQuery.matches || !vv) return;
+    // スマホのような1列表示のときだけ（iPad などの2列表示では何もしない）
+    if (!touchQuery.matches || !vv || isSideBySide()) return;
     clearTimeout(fitTimer);
     // キーボードが出きってから合わせる
     fitTimer = setTimeout(() => fitToViewport(align), 120);
@@ -330,7 +336,16 @@ async function setupArticleForm(form) {
     if (editor) editor.commands.scrollIntoView();
   }
 
-  if (vv) vv.addEventListener('resize', () => editing && scheduleFit(true));
+  // キーボードが出た・引っ込んだとき（高さが大きく変わったとき）だけ合わせ直す。
+  // アドレスバーが縮むくらいの小さな変化では動かさない。
+  let lastVvHeight = vv ? vv.height : 0;
+  if (vv) {
+    vv.addEventListener('resize', () => {
+      const changed = Math.abs(vv.height - lastVvHeight) > 120;
+      lastVvHeight = vv.height;
+      if (editing && changed) scheduleFit(true);
+    });
+  }
   touchQuery.addEventListener?.('change', () => editing && scheduleFit(true));
 
   // ---- 書きかけの一時保存（このブラウザの中だけ） ----
