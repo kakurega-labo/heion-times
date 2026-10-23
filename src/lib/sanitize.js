@@ -1,9 +1,9 @@
 // 本文HTMLのサニタイズ（許可したタグ以外を取り除く）。
-// 見たままエディタで使えるもの（段落・小見出し・太字・リンク・引用・改行）だけを残します。
+// 見たままエディタで使えるもの（本文・見出し・小見出し・太字・リンク・引用・改行）だけを残します。
 // Cloudflare 上では HTMLRewriter を使い、それがない環境（ローカルのテスト）では
 // 簡易版で代用します。
 
-const ALLOWED = new Set(['p', 'h2', 'strong', 'b', 'a', 'blockquote', 'br']);
+const ALLOWED = new Set(['p', 'h2', 'h3', 'strong', 'b', 'a', 'blockquote', 'br']);
 const DROP_WITH_CONTENT = new Set([
   'script', 'style', 'iframe', 'object', 'embed', 'template', 'noscript',
   'svg', 'math', 'textarea', 'select', 'button', 'form', 'input', 'head', 'title', 'link', 'meta',

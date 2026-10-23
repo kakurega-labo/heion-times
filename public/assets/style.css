@@ -140,7 +140,8 @@ main.container { padding-top: 32px; padding-bottom: 64px; }
 .article__figure figcaption { font-size: 13px; color: var(--muted); }
 .article__body { max-width: 680px; font-size: 17px; line-height: 2; }
 .article__body > * { margin: 0 0 20px; }
-.article__body h2 { font-family: var(--serif); font-weight: 800; font-size: 22px; line-height: 1.5; margin-top: 12px; }
+.article__body h2 { font-family: var(--serif); font-weight: 800; font-size: 24px; line-height: 1.5; margin-top: 16px; }
+.article__body h3 { font-family: var(--serif); font-weight: 800; font-size: 19px; line-height: 1.5; margin-top: 8px; }
 .article__body blockquote { margin-left: 0; padding: 4px 0 4px 20px; border-left: 3px solid var(--calm-soft); color: #333; }
 .article__body blockquote > * { margin: 0 0 8px; }
 .article__body a { color: var(--calm); text-decoration: underline; }
@@ -216,6 +217,8 @@ main.container { padding-top: 32px; padding-bottom: 64px; }
   .article__figure { margin: 0 -16px; }
   .article__figure figcaption { padding: 0 16px; font-size: 12px; }
   .article__body { font-size: 16px; line-height: 1.95; }
+  .article__body h2 { font-size: 21px; }
+  .article__body h3 { font-size: 18px; }
   .vote__title { font-size: 20px; }
   .vote__btn { flex: 1 1 0; min-height: 60px; flex-direction: column; gap: 4px; font-size: 15px; }
   .page-title { font-size: 24px; }

@@ -129,7 +129,7 @@ async function setupArticleForm(form) {
       content: textarea.value,
       extensions: [
         StarterKit.configure({
-          heading: { levels: [2] },
+          heading: { levels: [2, 3] }, // 見出し（h2）・小見出し（h3）
           link: { openOnClick: false, autolink: true, HTMLAttributes: { rel: null, target: null } },
           bulletList: false,
           orderedList: false,
@@ -143,13 +143,20 @@ async function setupArticleForm(form) {
           horizontalRule: false,
         }),
       ],
-      editorProps: { attributes: { class: 'editor__content', 'aria-multiline': 'true', role: 'textbox' } },
+      editorProps: {
+        attributes: { class: 'editor__content', 'aria-multiline': 'true', role: 'textbox' },
+        // スマホでキーボード上のツールバーに文字が隠れないよう、下に余白を取ってスクロールする
+        scrollMargin: { top: 80, bottom: 96, left: 0, right: 0 },
+        scrollThreshold: { top: 80, bottom: 96, left: 0, right: 0 },
+      },
       onUpdate: () => {
         syncTextarea();
         markDirty();
       },
       onSelectionUpdate: updateToolbar,
       onTransaction: updateToolbar,
+      onFocus: () => setEditing(true),
+      onBlur: () => setTimeout(() => setEditing(editor && editor.isFocused), 150),
     });
 
     textarea.hidden = true;
@@ -159,7 +166,7 @@ async function setupArticleForm(form) {
     updateToolbar();
   } catch (err) {
     console.error('エディタを読み込めませんでした', err);
-    if (note) note.textContent = 'エディタを読み込めなかったため、HTMLで直接書く欄を表示しています（<p>段落</p>、<h2>小見出し</h2> など）。';
+    if (note) note.textContent = 'エディタを読み込めなかったため、HTMLで直接書く欄を表示しています（<p>本文</p>、<h2>見出し</h2>、<h3>小見出し</h3> など）。';
     textarea.addEventListener('input', markDirty);
   }
 
@@ -170,8 +177,12 @@ async function setupArticleForm(form) {
 
   function updateToolbar() {
     if (!editor) return;
+    const h2 = editor.isActive('heading', { level: 2 });
+    const h3 = editor.isActive('heading', { level: 3 });
     const state = {
-      h2: editor.isActive('heading', { level: 2 }),
+      p: !h2 && !h3 && editor.isActive('paragraph'),
+      h2,
+      h3,
       bold: editor.isActive('bold'),
       link: editor.isActive('link'),
       quote: editor.isActive('blockquote'),
@@ -183,42 +194,114 @@ async function setupArticleForm(form) {
     toolbar.querySelector('[data-cmd="redo"]').disabled = !editor.can().redo();
   }
 
+  // ボタンを押しても入力欄からフォーカスが外れない（スマホでキーボードが閉じない）ようにする
+  toolbar.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('[data-cmd]')) event.preventDefault();
+  });
+  toolbar.addEventListener('mousedown', (event) => {
+    if (event.target.closest('[data-cmd]')) event.preventDefault();
+  });
+
   toolbar.addEventListener('click', (event) => {
     const button = event.target.closest('[data-cmd]');
-    if (!button || !editor) return;
-    const chain = editor.chain().focus();
+    if (!button || !editor || button.disabled) return;
+    const run = () => editor.chain().focus();
     switch (button.dataset.cmd) {
+      case 'p':
+        run().setParagraph().run();
+        break;
       case 'h2':
-        chain.toggleHeading({ level: 2 }).run();
+        run().toggleHeading({ level: 2 }).run();
+        break;
+      case 'h3':
+        run().toggleHeading({ level: 3 }).run();
         break;
       case 'bold':
-        chain.toggleBold().run();
+        run().toggleBold().run();
         break;
       case 'quote':
-        chain.toggleBlockquote().run();
+        run().toggleBlockquote().run();
         break;
       case 'undo':
-        chain.undo().run();
+        run().undo().run();
         break;
       case 'redo':
-        chain.redo().run();
+        run().redo().run();
         break;
       case 'link': {
         if (editor.isActive('link')) {
-          chain.extendMarkRange('link').unsetLink().run();
+          run().extendMarkRange('link').unsetLink().run();
           break;
         }
         const href = window.prompt('リンク先のURLを入力してください（https:// から）', 'https://');
-        if (!href || href === 'https://') break;
-        if (!/^(https?:\/\/|mailto:|\/)/.test(href)) {
-          window.alert('https:// で始まるURLを入力してください。');
+        if (!href || href === 'https://') {
+          editor.commands.focus();
           break;
         }
-        chain.extendMarkRange('link').setLink({ href }).run();
+        if (!/^(https?:\/\/|mailto:|\/)/.test(href)) {
+          window.alert('https:// で始まるURLを入力してください。');
+          editor.commands.focus();
+          break;
+        }
+        run().extendMarkRange('link').setLink({ href }).run();
         break;
       }
     }
   });
+
+  // ---- ツールバーの位置 ----
+  // 入力していないとき：文章と一緒にスクロール（文字に重ならない）
+  // 入力中・パソコン：画面の上に固定
+  // 入力中・スマホ：キーボードのすぐ上に固定
+  const spacer = form.querySelector('[data-toolbar-spacer]');
+  const touchQuery = window.matchMedia('(hover: none) and (pointer: coarse)');
+  const vv = window.visualViewport;
+  let editing = false;
+  let mode = '';
+
+  function setEditing(on) {
+    editing = !!on;
+    applyToolbarMode();
+  }
+
+  function applyToolbarMode() {
+    const next = !editing ? '' : touchQuery.matches && vv ? 'keyboard' : 'top';
+    if (next !== mode) {
+      mode = next;
+      toolbar.classList.toggle('editor__toolbar--top', mode === 'top');
+      toolbar.classList.toggle('editor__toolbar--keyboard', mode === 'keyboard');
+      if (mode === 'keyboard') {
+        // ツールバーが抜けた分だけ場所を空けて、文章がガクッと動かないようにする
+        spacer.style.height = `${toolbar.offsetHeight}px`;
+        spacer.hidden = false;
+        document.body.style.paddingBottom = '72px';
+      } else {
+        spacer.hidden = true;
+        toolbar.style.transform = '';
+        toolbar.style.width = '';
+        document.body.style.paddingBottom = '';
+      }
+    }
+    if (mode === 'keyboard') placeAboveKeyboard();
+  }
+
+  let frame = 0;
+  function placeAboveKeyboard() {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => {
+      if (mode !== 'keyboard') return;
+      const top = vv.offsetTop + vv.height - toolbar.offsetHeight;
+      toolbar.style.transform = `translate3d(${vv.offsetLeft}px, ${Math.max(0, top)}px, 0)`;
+      toolbar.style.width = `${vv.width}px`;
+    });
+  }
+
+  if (vv) {
+    vv.addEventListener('resize', () => mode === 'keyboard' && placeAboveKeyboard());
+    vv.addEventListener('scroll', () => mode === 'keyboard' && placeAboveKeyboard());
+  }
+  window.addEventListener('scroll', () => mode === 'keyboard' && placeAboveKeyboard(), { passive: true });
+  touchQuery.addEventListener?.('change', applyToolbarMode);
 
   // ---- 書きかけの一時保存（このブラウザの中だけ） ----
   const storage = (() => {

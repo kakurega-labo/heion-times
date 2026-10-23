@@ -43,7 +43,7 @@ export function htmlResponse(body, init = {}) {
 // タグを取り除いて本文の書き出しを作る
 export function plainText(htmlString) {
   return String(htmlString || '')
-    .replace(/<\/(p|h2|blockquote)>/gi, ' ')
+    .replace(/<\/(p|h2|h3|blockquote)>/gi, ' ')
     .replace(/<br\s*\/?>/gi, ' ')
     .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;/g, ' ')

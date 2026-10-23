@@ -73,18 +73,19 @@ export function listView({ articles, filter }) {
     </nav>
     ${
       articles.length
-        ? html`<div class="table-wrap"><table class="table">
+        ? html`<div class="table-wrap"><table class="table table--articles">
             <thead><tr><th>見出し</th><th>地名</th><th>状態</th><th>日時</th><th>平穏度</th><th></th></tr></thead>
             <tbody>${articles.map((a) => {
               const st = statusInfo(a);
               const pct = calmPercent(a.calm, a.rough);
+              const title = a.title || '（見出しなし）';
               return html`<tr>
-                <td class="table__title"><a href="/admin/articles/${a.id}/">${a.title || '（見出しなし）'}</a>${a.is_top ? html`<span class="badge badge--top">トップ</span>` : ''}</td>
-                <td>${a.place_name || '—'}</td>
-                <td><span class="badge badge--${st.key}">${st.label}</span></td>
-                <td class="nowrap">${a.published_at ? formatDateTime(a.published_at) : formatDateTime(a.updated_at)}</td>
-                <td class="nowrap">${pct === null ? '—' : `${pct}%（${a.calm + a.rough}票）`}</td>
-                <td class="nowrap">${st.key === 'published' ? html`<a href="/articles/${a.public_id}/" target="_blank" rel="noopener">表示</a>` : ''}</td>
+                <td class="table__title"><div class="table__title-inner"><a href="/admin/articles/${a.id}/" title="${title}">${title}</a>${a.is_top ? html`<span class="badge badge--top">トップ</span>` : ''}</div></td>
+                <td class="table__place">${a.place_name || '—'}</td>
+                <td class="table__status"><span class="badge badge--${st.key}">${st.label}</span></td>
+                <td class="table__date nowrap">${a.published_at ? formatDateTime(a.published_at) : formatDateTime(a.updated_at)}</td>
+                <td class="table__score nowrap">${pct === null ? '—' : `${pct}%（${a.calm + a.rough}票）`}</td>
+                <td class="table__view nowrap">${st.key === 'published' ? html`<a href="/articles/${a.public_id}/" target="_blank" rel="noopener">表示</a>` : ''}</td>
               </tr>`;
             })}</tbody>
           </table></div>`
@@ -134,8 +135,12 @@ export function formView({ article, values, places, tags, errors = {} }) {
         <div class="field">
           <span class="label" id="body-label">本文</span>
           <div class="editor" data-editor-root>
+            <div class="editor__toolbar-spacer" data-toolbar-spacer hidden></div>
             <div class="editor__toolbar" role="toolbar" aria-label="本文の書式" data-toolbar hidden>
-              <button type="button" data-cmd="h2" aria-pressed="false">小見出し</button>
+              <button type="button" data-cmd="p" aria-pressed="false">本文</button>
+              <button type="button" data-cmd="h2" aria-pressed="false">見出し</button>
+              <button type="button" data-cmd="h3" aria-pressed="false">小見出し</button>
+              <span class="editor__sep" aria-hidden="true"></span>
               <button type="button" data-cmd="bold" aria-pressed="false"><b>太字</b></button>
               <button type="button" data-cmd="link" aria-pressed="false">リンク</button>
               <button type="button" data-cmd="quote" aria-pressed="false">引用</button>
