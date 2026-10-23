@@ -145,9 +145,9 @@ async function setupArticleForm(form) {
       ],
       editorProps: {
         attributes: { class: 'editor__content', 'aria-multiline': 'true', role: 'textbox' },
-        // スマホでキーボード上のツールバーに文字が隠れないよう、下に余白を取ってスクロールする
-        scrollMargin: { top: 80, bottom: 96, left: 0, right: 0 },
-        scrollThreshold: { top: 80, bottom: 96, left: 0, right: 0 },
+        // カーソルが枠の端にくっつかないよう、少し余白を取ってスクロールする
+        scrollMargin: { top: 24, bottom: 32, left: 0, right: 0 },
+        scrollThreshold: { top: 24, bottom: 32, left: 0, right: 0 },
       },
       onUpdate: () => {
         syncTextarea();
@@ -249,59 +249,45 @@ async function setupArticleForm(form) {
     }
   });
 
-  // ---- ツールバーの位置 ----
-  // 入力していないとき：文章と一緒にスクロール（文字に重ならない）
-  // 入力中・パソコン：画面の上に固定
-  // 入力中・スマホ：キーボードのすぐ上に固定
-  const spacer = form.querySelector('[data-toolbar-spacer]');
+  // ---- 編集枠の大きさ ----
+  // ツールバーはいつも編集枠のいちばん上にあり、本文は枠の中でスクロールする。
+  // スマホで入力中は、キーボードの上の見えている範囲にちょうど収まるよう枠の高さを合わせる。
+  const editorRoot = form.querySelector('[data-editor-root]');
   const touchQuery = window.matchMedia('(hover: none) and (pointer: coarse)');
   const vv = window.visualViewport;
   let editing = false;
-  let mode = '';
+  let fitTimer = 0;
 
   function setEditing(on) {
+    if (editing === !!on) return;
     editing = !!on;
-    applyToolbarMode();
+    editorRoot.classList.toggle('editor--editing', editing);
+    if (editing) scheduleFit(true);
+    else surface.style.maxHeight = '';
   }
 
-  function applyToolbarMode() {
-    const next = !editing ? '' : touchQuery.matches && vv ? 'keyboard' : 'top';
-    if (next !== mode) {
-      mode = next;
-      toolbar.classList.toggle('editor__toolbar--top', mode === 'top');
-      toolbar.classList.toggle('editor__toolbar--keyboard', mode === 'keyboard');
-      if (mode === 'keyboard') {
-        // ツールバーが抜けた分だけ場所を空けて、文章がガクッと動かないようにする
-        spacer.style.height = `${toolbar.offsetHeight}px`;
-        spacer.hidden = false;
-        document.body.style.paddingBottom = '72px';
-      } else {
-        spacer.hidden = true;
-        toolbar.style.transform = '';
-        toolbar.style.width = '';
-        document.body.style.paddingBottom = '';
-      }
+  function scheduleFit(align) {
+    if (!touchQuery.matches || !vv) return;
+    clearTimeout(fitTimer);
+    // キーボードが出きってから合わせる
+    fitTimer = setTimeout(() => fitToViewport(align), 120);
+  }
+
+  function fitToViewport(align) {
+    if (!editing) return;
+    const BOTTOM_SAFE = 64; // Safari のアドレスバーなどに隠れない余白
+    const available = vv.height - toolbar.offsetHeight - BOTTOM_SAFE - 8;
+    surface.style.maxHeight = `${Math.max(160, Math.round(available))}px`;
+    if (align) {
+      const top = editorRoot.getBoundingClientRect().top - vv.offsetTop - 8;
+      if (Math.abs(top) > 4) window.scrollBy({ top, behavior: 'smooth' });
     }
-    if (mode === 'keyboard') placeAboveKeyboard();
+    // カーソルが枠の外に出ていたら枠の中で見える位置へ
+    if (editor) editor.commands.scrollIntoView();
   }
 
-  let frame = 0;
-  function placeAboveKeyboard() {
-    cancelAnimationFrame(frame);
-    frame = requestAnimationFrame(() => {
-      if (mode !== 'keyboard') return;
-      const top = vv.offsetTop + vv.height - toolbar.offsetHeight;
-      toolbar.style.transform = `translate3d(${vv.offsetLeft}px, ${Math.max(0, top)}px, 0)`;
-      toolbar.style.width = `${vv.width}px`;
-    });
-  }
-
-  if (vv) {
-    vv.addEventListener('resize', () => mode === 'keyboard' && placeAboveKeyboard());
-    vv.addEventListener('scroll', () => mode === 'keyboard' && placeAboveKeyboard());
-  }
-  window.addEventListener('scroll', () => mode === 'keyboard' && placeAboveKeyboard(), { passive: true });
-  touchQuery.addEventListener?.('change', applyToolbarMode);
+  if (vv) vv.addEventListener('resize', () => editing && scheduleFit(true));
+  touchQuery.addEventListener?.('change', () => editing && scheduleFit(true));
 
   // ---- 書きかけの一時保存（このブラウザの中だけ） ----
   const storage = (() => {

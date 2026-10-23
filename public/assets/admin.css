@@ -77,18 +77,12 @@ body.admin { background: #f6f7f7; }
 .hint { margin: 0; font-size: 12px; color: var(--muted); }
 
 .editor { border: 1px solid #bbbbbb; background: #fff; }
-/* ツールバー：入力していないときは文章と一緒にスクロール（重ならない）。
-   入力中は、パソコンでは画面の上に、スマホではキーボードのすぐ上に固定する（admin-editor.js が切り替え） */
-.editor__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px; border-bottom: 1px solid #dddddd; background: #fafafa; }
-.editor__toolbar--top { position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
-.editor__toolbar--keyboard {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 50;
-  flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
-  border-top: 1px solid #cccccc; box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
-  padding: 6px max(6px, env(safe-area-inset-left)) 6px max(6px, env(safe-area-inset-right));
-}
-.editor__toolbar--keyboard::-webkit-scrollbar { display: none; }
-.editor__toolbar--keyboard button { flex: none; }
+/* 編集枠：ツールバーはいつも枠のいちばん上。本文は枠の中でスクロールする（admin-editor.js がスマホ入力中の高さを調整） */
+.editor { display: flex; flex-direction: column; }
+.editor--editing { border-color: var(--calm); box-shadow: 0 0 0 3px #b9d6d7; }
+.editor__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px; border-bottom: 1px solid #dddddd; background: #fafafa; flex: none; }
+.editor__surface { overflow-y: auto; max-height: 70vh; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.editor--editing .editor__content:focus { outline: none; }
 .editor__toolbar button { font: inherit; font-size: 14px; color: var(--ink); min-height: 40px; min-width: 44px; padding: 4px 12px; border: 1px solid transparent; background: transparent; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
 .editor__toolbar button:hover { border-color: #cccccc; background: #fff; }
 .editor__toolbar button[aria-pressed='true'] { background: var(--calm); color: #fff; }
@@ -167,3 +161,21 @@ details[open] summary { margin-bottom: 8px; }
 .login__box code { background: #f0f0f0; padding: 1px 6px; }
 .login__back { text-align: center; font-size: 14px; }
 .field input[type='password'] { font: inherit; font-size: 15px; padding: 10px 12px; min-height: 44px; border: 1px solid #bbbbbb; background: #fff; width: 100%; }
+
+/* ---- 地名・タグの一覧 ---- */
+.term-list { list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid #dddddd; }
+.term { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 24px; padding: 14px 16px; border-bottom: 1px solid #eeeeee; }
+.term:last-child { border-bottom: 0; }
+.term__form { flex: 1 1 520px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 8px 12px; min-width: 0; }
+.term__field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.term__label { font-size: 12px; font-weight: 700; color: var(--muted); }
+.term__field input { font: inherit; font-size: 15px; padding: 8px 10px; min-height: 44px; border: 1px solid #bbbbbb; background: #fff; width: 100%; }
+.term__field input:focus { outline: 3px solid #b9d6d7; border-color: var(--calm); }
+.term__actions { display: flex; gap: 8px; }
+.term__meta { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--muted); white-space: nowrap; min-height: 44px; }
+.term__meta a { color: var(--calm); }
+@media (max-width: 640px) {
+  .term__form { grid-template-columns: minmax(0, 1fr); }
+  .term__actions .btn { flex: 1; }
+  .term__meta { width: 100%; justify-content: space-between; min-height: 32px; }
+}

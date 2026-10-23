@@ -269,14 +269,14 @@ export async function setArticleTags(db, articleId, tagIds) {
 
 export const deleteArticle = (db, id) => db.prepare(`DELETE FROM articles WHERE id = ?`).bind(id).run();
 
-// 記事ID（YYYYMMDD-NN）を採番
+// 記事ID（YYYYMMDDNN：日本時間の公開日8桁＋その日の何本目か2桁、例 2026102301）を採番
 export async function nextPublicId(db, publishedAtIso) {
   const key = jstDateKey(publishedAtIso);
   const row = await db
-    .prepare(`SELECT public_id FROM articles WHERE public_id LIKE ? ORDER BY public_id DESC LIMIT 1`)
-    .bind(`${key}-%`)
+    .prepare(`SELECT public_id FROM articles WHERE public_id LIKE ? AND length(public_id) = 10 ORDER BY public_id DESC LIMIT 1`)
+    .bind(`${key}__`)
     .first();
-  const n = row ? parseInt(row.public_id.slice(9), 10) + 1 : 1;
+  const n = row ? parseInt(row.public_id.slice(8), 10) + 1 : 1;
   if (n > 99) throw new Error('1日に公開できる記事は99本までです');
-  return `${key}-${String(n).padStart(2, '0')}`;
+  return `${key}${String(n).padStart(2, '0')}`;
 }

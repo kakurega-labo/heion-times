@@ -135,7 +135,6 @@ export function formView({ article, values, places, tags, errors = {} }) {
         <div class="field">
           <span class="label" id="body-label">本文</span>
           <div class="editor" data-editor-root>
-            <div class="editor__toolbar-spacer" data-toolbar-spacer hidden></div>
             <div class="editor__toolbar" role="toolbar" aria-label="本文の書式" data-toolbar hidden>
               <button type="button" data-cmd="p" aria-pressed="false">本文</button>
               <button type="button" data-cmd="h2" aria-pressed="false">見出し</button>
@@ -272,23 +271,24 @@ export function termsView({ kind, items, errors = {}, values = {} }) {
     </section>
     ${
       items.length
-        ? html`<div class="table-wrap"><table class="table">
-            <thead><tr><th>${label}</th><th>URL用ローマ字</th><th>記事数</th><th></th></tr></thead>
-            <tbody>${items.map(
-              (t) => html`<tr>
-                <td colspan="2">
-                  <form class="inline-form inline-form--row" method="post" action="${base}${t.id}/">
-                    <input type="text" name="name" value="${t.name}" aria-label="${label}" required>
-                    <input type="text" name="slug" value="${t.slug}" aria-label="URL用ローマ字" required pattern="[a-z0-9-]+" autocapitalize="off">
-                    <button class="btn" type="submit" name="action" value="update">保存</button>
-                    ${t.usage === 0 ? html`<button class="btn btn--danger btn--ghost" type="submit" name="action" value="delete">削除</button>` : ''}
-                  </form>
-                </td>
-                <td>${t.usage}</td>
-                <td><a href="${prefix}${t.slug}/" target="_blank" rel="noopener">表示</a></td>
-              </tr>`,
-            )}</tbody>
-          </table></div>`
+        ? html`<ul class="term-list">${items.map(
+            (t) => html`<li class="term">
+              <form class="term__form" method="post" action="${base}${t.id}/">
+                <label class="term__field"><span class="term__label">${label}</span>
+                  <input type="text" name="name" value="${t.name}" required></label>
+                <label class="term__field"><span class="term__label">URL用ローマ字</span>
+                  <input type="text" name="slug" value="${t.slug}" required pattern="[a-z0-9-]+" autocapitalize="off"></label>
+                <div class="term__actions">
+                  <button class="btn" type="submit" name="action" value="update">保存</button>
+                  ${t.usage === 0 ? html`<button class="btn btn--danger btn--ghost" type="submit" name="action" value="delete">削除</button>` : ''}
+                </div>
+              </form>
+              <div class="term__meta">
+                <span>記事 ${t.usage}件</span>
+                <a href="${prefix}${t.slug}/" target="_blank" rel="noopener">サイトで見る</a>
+              </div>
+            </li>`,
+          )}</ul>`
         : html`<p class="empty">まだありません。</p>`
     }`;
 }

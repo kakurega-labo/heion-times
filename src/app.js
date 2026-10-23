@@ -35,8 +35,8 @@ export async function handle(context) {
     let m;
     if (path === '/' && method === 'GET') return await home(env, url);
     if (path === '/articles/' && method === 'GET') return await allArticles(env, url);
-    if ((m = path.match(/^\/articles\/(\d{8}-\d{2})\/$/)) && method === 'GET') return await article(env, url, request, m[1]);
-    if ((m = path.match(/^\/articles\/(\d{8}-\d{2})\/vote\/$/)) && method === 'POST') return await vote(env, url, request, m[1]);
+    if ((m = path.match(/^\/articles\/(\d{10})\/$/)) && method === 'GET') return await article(env, url, request, m[1]);
+    if ((m = path.match(/^\/articles\/(\d{10})\/vote\/$/)) && method === 'POST') return await vote(env, url, request, m[1]);
     if (path === '/places/' && method === 'GET') return await placesIndex(env, url);
     if (path === '/tags/' && method === 'GET') return await tagsIndex(env, url);
     if ((m = path.match(/^\/ranking\/([a-z]+)\/$/)) && method === 'GET') return await levelPage(env, url, m[1]);
