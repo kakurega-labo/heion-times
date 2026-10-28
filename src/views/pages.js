@@ -26,7 +26,7 @@ export function homePage({ origin, top, latest, ranking, tags, hasMore }) {
     <div class="columns__main">
       ${topBlock}
       <section aria-labelledby="latest-h">
-        <h2 class="section-title" id="latest-h">最新ニュース</h2>
+        <h2 class="section-title" id="latest-h">そのほかのニュース</h2>
         ${articleList(latest)}
         ${hasMore ? html`<a class="button-outline" href="/articles/?page=2">もっと見る</a>` : ''}
       </section>
@@ -75,11 +75,11 @@ export function articlePage({ origin, a, tags, myVote, sameTown, latest, ranking
       <article class="article">
         <nav class="crumbs" aria-label="現在地">
           <a href="/">トップ</a><span aria-hidden="true">›</span>
-          ${a.place_slug ? html`<a href="${placeUrl(a.place_slug)}">${a.place_name}</a>` : html`<span>記事</span>`}
+          <a href="/articles/">ニュース</a><span aria-hidden="true">›</span>
+          <span class="crumbs__current" aria-current="page">${a.title || '（見出し未入力）'}</span>
         </nav>
         <header class="article__head">
           <div class="meta-line">
-            ${a.place_slug ? html`<a class="place" href="${placeUrl(a.place_slug)}">${a.place_name}</a>` : ''}
             ${a.published_at ? html`<time datetime="${a.published_at}">${formatDateTime(a.published_at)}</time>` : html`<span>（公開前）</span>`}
           </div>
           <h1 class="article__title">${a.title || '（見出し未入力）'}</h1>
