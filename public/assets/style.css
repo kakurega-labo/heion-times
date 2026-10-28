@@ -131,7 +131,9 @@ main.container { padding-top: 32px; padding-bottom: 64px; }
 
 /* ---- 記事ページ ---- */
 .article { display: flex; flex-direction: column; gap: 20px; }
-.crumbs { display: flex; gap: 8px; font-size: 13px; color: var(--muted); }
+.crumbs { display: flex; gap: 8px; font-size: 13px; color: var(--muted); min-width: 0; }
+.crumbs a { flex: none; }
+.crumbs__current { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .crumbs a { color: var(--muted); }
 .article__head { display: flex; flex-direction: column; gap: 10px; }
 .article__head .meta-line { font-size: 14px; }
